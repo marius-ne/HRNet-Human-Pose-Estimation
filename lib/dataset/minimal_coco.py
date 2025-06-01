@@ -32,8 +32,12 @@ class MinimalCOCODataset(JointsDataset):
         )
         self.color_rgb = cfg.DATASET.COLOR_RGB
 
+        self.image_width = cfg.MODEL.IMAGE_SIZE[0]
+        self.image_height = cfg.MODEL.IMAGE_SIZE[1]
+        self.aspect_ratio = self.image_width * 1.0 / self.image_height
+
         self.parent_ids = None          
-        
+
         self.upper_body_ids = (2, 3, 12, 10, 11, 15, 6, 7, 13) # NOTE: We disabled the half_body_transform in the cfg
                                                                 # so we don't need to modify these. NOW ENABLED!
         self.lower_body_ids = (0, 1, 4, 5, 14, 8, 9)
