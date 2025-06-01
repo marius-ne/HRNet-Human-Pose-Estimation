@@ -13,7 +13,7 @@ import json
 
 class MinimalCOCODataset(JointsDataset):
     def __init__(self, cfg, root, ann_file, image_set, is_train, transform=None):
-        super().__init__()
+        super().__init__(cfg, root, image_set, is_train, transform)
         self.cfg = cfg
         self.root = root
         self.is_train = is_train
