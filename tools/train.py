@@ -97,9 +97,11 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED  
 
     # Build model  
-    model = eval('models.' + cfg.MODEL.NAME + '.get_pose_net')(  
-        cfg, is_train=True  
-    )  
+    # New:
+    # Dynamically import the module under the `models/` directory that matches cfg.MODEL.NAME
+    model_mod = __import__('models.' + cfg.MODEL.NAME, fromlist=['get_pose_net'])
+    model = model_mod.get_pose_net(cfg, is_train=True)
+
 
     # Copy model file into output dir for reproducibility  
     this_dir = os.path.dirname(__file__)  
