@@ -36,14 +36,20 @@ from utils.utils import get_model_summary
 from dataset.minimal_coco import MinimalCOCODataset  
 
 
-# Collate function must unpack the 4-tuple returned by __getitem__
+# Updated collate function: build a dict of lists for 'meta'  
 def custom_collate(batch):
     # batch is a list of tuples: (input_tensor, target, target_weight, meta)
     images         = torch.stack([item[0] for item in batch], dim=0)
     targets        = torch.stack([item[1] for item in batch], dim=0)
     target_weights = torch.stack([item[2] for item in batch], dim=0)
-    metas          = [item[3] for item in batch]
-    return images, targets, target_weights, metas
+    meta_list      = [item[3] for item in batch]
+
+    # Collate 'meta' into a dict of lists
+    meta_dict = {}
+    for key in meta_list[0].keys():
+        meta_dict[key] = [m[key] for m in meta_list]
+
+    return images, targets, target_weights, meta_dict
 
 
 def parse_args():  
@@ -97,11 +103,9 @@ def main():
     torch.backends.cudnn.enabled = cfg.CUDNN.ENABLED  
 
     # Build model  
-    # New:
-    # Dynamically import the module under the `models/` directory that matches cfg.MODEL.NAME
-    model_mod = __import__('models.' + cfg.MODEL.NAME, fromlist=['get_pose_net'])
-    model = model_mod.get_pose_net(cfg, is_train=True)
-
+    model = __import__('models.' + cfg.MODEL.NAME, fromlist=['get_pose_net']).get_pose_net(  
+        cfg, is_train=True  
+    )  
 
     # Copy model file into output dir for reproducibility  
     this_dir = os.path.dirname(__file__)  
