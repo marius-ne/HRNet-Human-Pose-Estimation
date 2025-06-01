@@ -159,25 +159,30 @@ def main():
         raise FileNotFoundError(f"Validation annotation JSON not found: {valid_ann_file}")  
 
     # Instantiate our minimal COCO-based datasets  
-    train_dataset = MinimalCOCODataset(  
-        root=train_images_dir,  
-        ann_file=train_ann_file,  
-        is_train=True,  
-        transform=transforms.Compose([  
-            transforms.ToTensor(),  
-            normalize,  
-        ])  
-    )  
+    train_dataset = MinimalCOCODataset(
+        cfg,
+        root=train_images_dir,
+        ann_file=train_ann_file,
+        image_set=cfg.DATASET.TRAIN_SET,
+        is_train=True,
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            normalize,
+        ])
+    )
+    
+    valid_dataset = MinimalCOCODataset(
+        cfg,
+        root=valid_images_dir,
+        ann_file=valid_ann_file,
+        image_set=cfg.DATASET.TEST_SET,
+        is_train=False,
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            normalize,
+        ])
+    )
 
-    valid_dataset = MinimalCOCODataset(  
-        root=valid_images_dir,  
-        ann_file=valid_ann_file,  
-        is_train=False,  
-        transform=transforms.Compose([  
-            transforms.ToTensor(),  
-            normalize,  
-        ])  
-    )  
 
     train_loader = torch.utils.data.DataLoader(  
         train_dataset,  
