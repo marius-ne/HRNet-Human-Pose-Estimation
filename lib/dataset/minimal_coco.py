@@ -32,6 +32,12 @@ class MinimalCOCODataset(JointsDataset):
         )
         self.color_rgb = cfg.DATASET.COLOR_RGB
 
+        self.parent_ids = None          
+        
+        self.upper_body_ids = (2, 3, 12, 10, 11, 15, 6, 7, 13) # NOTE: We disabled the half_body_transform in the cfg
+                                                                # so we don't need to modify these. NOW ENABLED!
+        self.lower_body_ids = (0, 1, 4, 5, 14, 8, 9)
+
         with open(ann_file, 'r') as f:
             raw_data = json.load(f)
 
