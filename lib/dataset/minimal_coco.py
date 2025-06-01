@@ -31,13 +31,14 @@ class MinimalCOCODataset(Dataset):
         )
         self.color_rgb = cfg.DATASET.COLOR_RGB
 
-        # Load the JSON list of annotations directly
         with open(ann_file, 'r') as f:
             raw_data = json.load(f)
 
-        # Build a mapping from image_id → list of its annotation dicts
+        # raw_data is a dict with keys "images", "annotations", etc.
+        annotations = raw_data['annotations']
+
         anns_per_image = defaultdict(list)
-        for ann in raw_data:
+        for ann in annotations:
             img_id = int(ann['image_id'])
             anns_per_image[img_id].append(ann)
 
