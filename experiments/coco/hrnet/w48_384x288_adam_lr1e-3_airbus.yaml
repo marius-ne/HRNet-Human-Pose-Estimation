@@ -15,6 +15,7 @@ DATASET:
   DATASET: 'coco'
   DATA_FORMAT: png
   FLIP: true
+  FLIP_PAIRS: [[0,1],[2,3],[6,7],[4,5],[10,11],[9,8]]
   NUM_JOINTS_HALF_BODY: 8
   PROB_HALF_BODY: 0.3
   ROOT: 'data/coco/'
