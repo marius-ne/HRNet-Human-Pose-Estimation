@@ -112,7 +112,7 @@ def main():
 
     logger.info(get_model_summary(model, dump_input))
 
-    model = torch.nn.DataParallel(model, device_ids=cfg.GPUS).cuda()
+    model = torch.nn.DataParallel(model, device_ids=list(range(torch.cuda.device_count()))).cuda()
 
     # define loss function (criterion) and optimizer
     criterion = JointsMSELoss(
