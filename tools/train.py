@@ -33,7 +33,7 @@ from utils.utils import save_checkpoint
 from utils.utils import create_logger  
 from utils.utils import get_model_summary  
 
-# Import our new minimal dataset class
+# Import our new minimal dataset class  
 from dataset.minimal_coco import MinimalCOCODataset  
 
 import models  
@@ -128,10 +128,35 @@ def main():
         std=[0.229, 0.224, 0.225]  
     )  
 
-    # For training, we expect cfg.DATASET.ROOT_IMG and cfg.DATASET.ANN_FILE to be set  
+    # Construct paths for training images and annotation JSON
+    train_images_dir = os.path.join(  
+        cfg.DATASET.ROOT, 'images', cfg.DATASET 
+    )  
+    train_ann_file   = os.path.join(  
+        cfg.DATASET.ROOT, 'annotations', f'{cfg.DATASET.TRAIN_SET}.json'  
+    )  
+
+    valid_images_dir = os.path.join(  
+        cfg.DATASET.ROOT, 'images' 
+    )  
+    valid_ann_file   = os.path.join(  
+        cfg.DATASET.ROOT, 'annotations', f'{cfg.DATASET.TEST_SET}.json'  
+    )  
+
+    # Sanity check: ensure those files/folders exist  
+    if not os.path.isdir(train_images_dir):  
+        raise FileNotFoundError(f"Training image folder not found: {train_images_dir}")  
+    if not os.path.isfile(train_ann_file):  
+        raise FileNotFoundError(f"Training annotation JSON not found: {train_ann_file}")  
+    if not os.path.isdir(valid_images_dir):  
+        raise FileNotFoundError(f"Validation image folder not found: {valid_images_dir}")  
+    if not os.path.isfile(valid_ann_file):  
+        raise FileNotFoundError(f"Validation annotation JSON not found: {valid_ann_file}")  
+
+    # Instantiate our minimal COCO-based datasets  
     train_dataset = MinimalCOCODataset(  
-        root=cfg.DATASET.ROOT_IMG,  
-        ann_file=cfg.DATASET.ANN_FILE_TRAIN,  
+        root=train_images_dir,  
+        ann_file=train_ann_file,  
         is_train=True,  
         transform=transforms.Compose([  
             transforms.ToTensor(),  
@@ -140,8 +165,8 @@ def main():
     )  
 
     valid_dataset = MinimalCOCODataset(  
-        root=cfg.DATASET.ROOT_IMG,  
-        ann_file=cfg.DATASET.ANN_FILE_VAL,  
+        root=valid_images_dir,  
+        ann_file=valid_ann_file,  
         is_train=False,  
         transform=transforms.Compose([  
             transforms.ToTensor(),  
