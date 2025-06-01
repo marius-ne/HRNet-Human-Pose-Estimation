@@ -7,7 +7,8 @@ import os
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 from utils.transforms import get_affine_transform, affine_transform, fliplr_joints
-
+from collections import defaultdict
+import json
 
 class MinimalCOCODataset(Dataset):
     def __init__(self, cfg, root, ann_file, image_set, is_train, transform=None):
@@ -18,8 +19,6 @@ class MinimalCOCODataset(Dataset):
         self.transform = transform
 
         # Load COCO annotations
-        self.coco = COCO(ann_file)
-        self.image_ids = [int(x) for x in self.coco.getImgIds()]
 
         # Store parameters that the original __getitem__ uses
         self.num_joints = cfg.MODEL.NUM_JOINTS
@@ -33,13 +32,26 @@ class MinimalCOCODataset(Dataset):
         self.color_rgb = cfg.DATASET.COLOR_RGB
         self.data_format = cfg.DATASET.DATA_FORMAT  # assume “dir” (not zip) here
 
+        # Load the JSON list of annotations directly
+        with open(ann_file, 'r') as f:
+            raw_data = json.load(f)
+
+        # Build a mapping from image_id → list of its annotation dicts
+        anns_per_image = defaultdict(list)
+        for ann in raw_data:
+            img_id = int(ann['image_id'])
+            anns_per_image[img_id].append(ann)
+
+        # Now set image_ids to the keys that actually exist in the JSON
+        self.image_ids = list(anns_per_image.keys())
+
+
         # Build a minimal “db” with exactly the fields the original __getitem__ expects
         self.db = []
         for img_id in self.image_ids:
-            img_info = self.coco.loadImgs(img_id)[0]
-            ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=False)
-            anns = self.coco.loadAnns(ann_ids)
-
+            anns = anns_per_image[img_id]
+            # Each ann has "image_filepath" (relative to self.root) and keypoints, bbox, etc.
+            image_path = os.path.join(self.root, anns[0]['image_filepath'])
             # For simplicity, take only the first annotation per image (or skip if no keypoints)
             for ann in anns:
                 if ann.get('num_keypoints', 0) == 0:
