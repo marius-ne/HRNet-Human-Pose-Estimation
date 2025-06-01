@@ -38,6 +38,11 @@ from dataset.minimal_coco import MinimalCOCODataset
 
 import models  
 
+def custom_collate(batch):
+    images = torch.stack([item['image'] for item in batch], dim=0)
+    keypoints = [item['keypoints'] for item in batch]
+    img_ids = [item['img_id'] for item in batch]
+    return {'image': images, 'keypoints': keypoints, 'img_id': img_ids}
 
 def parse_args():  
     parser = argparse.ArgumentParser(description='Train keypoints network')  
@@ -179,7 +184,8 @@ def main():
         batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU * len(device_ids),  
         shuffle=cfg.TRAIN.SHUFFLE,  
         num_workers=cfg.WORKERS,  
-        pin_memory=cfg.PIN_MEMORY  
+        pin_memory=cfg.PIN_MEMORY,
+        collate_fn=custom_collate  
     )  
 
     valid_loader = torch.utils.data.DataLoader(  
@@ -187,7 +193,8 @@ def main():
         batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(device_ids),  
         shuffle=False,  
         num_workers=cfg.WORKERS,  
-        pin_memory=cfg.PIN_MEMORY  
+        pin_memory=cfg.PIN_MEMORY,
+        collate_fn=custom_collate  
     )  
 
     best_perf = 0.0  
