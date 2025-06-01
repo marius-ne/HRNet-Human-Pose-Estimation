@@ -26,7 +26,7 @@ DATASET:
 MODEL:
   INIT_WEIGHTS: true
   NAME: pose_hrnet
-  NUM_JOINTS: 17
+  NUM_JOINTS: 16
   PRETRAINED: 'models/pytorch/pose_coco/pose_hrnet_w48_384x288.pth'
   TARGET_TYPE: gaussian
   IMAGE_SIZE:
