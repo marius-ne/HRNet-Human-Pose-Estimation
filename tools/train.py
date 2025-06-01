@@ -130,7 +130,7 @@ def main():
 
     # Construct paths for training images and annotation JSON
     train_images_dir = os.path.join(  
-        cfg.DATASET.ROOT, 'images', cfg.DATASET 
+        cfg.DATASET.ROOT, 'images'
     )  
     train_ann_file   = os.path.join(  
         cfg.DATASET.ROOT, 'annotations', f'{cfg.DATASET.TRAIN_SET}.json'  
