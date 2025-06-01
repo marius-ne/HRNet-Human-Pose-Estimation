@@ -33,39 +33,48 @@ class MinimalCOCODataset(Dataset):
         return len(self.ids)
 
     def __getitem__(self, idx):
-        """
-        Returns a dict with:
-            'image': PIL.Image loaded from disk,
-            'keypoints': (K, 3) array where K = # keypoints in that image,
-                         each keypoint is (x, y, v) with v ∈ {0,1,2} as in COCO.
-        """
         img_id = self.ids[idx]
         img_info = self.coco.loadImgs(img_id)[0]
         img_path = os.path.join(self.root, img_info['file_name'])
         image = Image.open(img_path).convert("RGB")
-
+    
         ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=False)
         anns = self.coco.loadAnns(ann_ids)
-
-        # Collect all keypoints for this image into an (N_instances, K, 3) array
+    
+        # Collect all keypoints for this image (N_instances × 17 × 3)
         keypoints = []
         for ann in anns:
             if 'keypoints' in ann and np.sum(ann['keypoints']) > 0:
                 kpt = np.array(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
                 keypoints.append(kpt)
         if len(keypoints) > 0:
-            keypoints = np.stack(keypoints, axis=0)  # shape: (num_instances, num_joints, 3)
+            keypoints = np.stack(keypoints, axis=0)
         else:
             keypoints = np.zeros((0, 17, 3), dtype=np.float32)
-
-        sample = {'image': image, 'keypoints': keypoints, 'img_id': img_id}
-
+    
+        # 1) Apply transforms to the PIL image → a Tensor
         if self.transform:
-            img_tensor = self.transform(image)       # transform(image) => Tensor
-            sample['image'] = img_tensor
+            image = self.transform(image)  # now image is a Tensor of shape (3, H, W)
+    
+        # 2) Build a dummy "target" heatmap tensor of shape (17, H_out, W_out)
+        #    (you can adjust H_out,W_out to match your network’s output size).
+        num_joints = 17
+        heatmap_size = (cfg.MODEL.HEATMAP_SIZE[1], cfg.MODEL.HEATMAP_SIZE[0])  # (H_out, W_out)
+        target = torch.zeros((num_joints, heatmap_size[0], heatmap_size[1]), dtype=torch.float32)
+    
+        # 3) Build a dummy "target_weight" of shape (17, 1)
+        target_weight = torch.ones((num_joints, 1), dtype=torch.float32)
+    
+        # 4) Put anything else you need into meta (e.g. image_id, original size, etc.)
+        meta = {
+            'image_id': img_id,
+            'orig_size': (img_info['width'], img_info['height']),
+            # if you want to pass keypoints through, you could also do:
+            # 'keypoints': keypoints  
+        }
+    
+        return image, target, target_weight, meta
 
-
-        return sample
 
     def evaluate(self, predictions, output_dir):
         """
