@@ -1,79 +1,163 @@
-import os
-import json
+import copy
+import random
+import cv2
+import torch
+import numpy as np
 from torch.utils.data import Dataset
 from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
-import numpy as np
-from PIL import Image
+from utils.transforms import get_affine_transform, affine_transform, fliplr_joints
+
 
 class MinimalCOCODataset(Dataset):
-    """
-    A minimal PyTorch Dataset for COCO keypoint training and evaluation.
-    Only loads image paths and raw keypoint annotations. Provides a basic
-    `evaluate` method that writes predictions in COCO format and runs COCOeval.
-    """
-    def __init__(self, root, ann_file, is_train=True, transform=None):
-        """
-        Args:
-            root (str): Directory where images are stored (COCO image folder).
-            ann_file (str): Path to the COCO annotation JSON (e.g., person_keypoints_train2017.json).
-            is_train (bool): If True, loads training IDs; otherwise loads validation/test IDs.
-            transform (callable, optional): A function/transform that takes in a dict
-                with keys {'image': PIL.Image, 'keypoints': np.ndarray} and returns a transformed dict.
-        """
+    def __init__(self, cfg, root, ann_file, image_set, is_train, transform=None):
         super().__init__()
+        self.cfg = cfg
         self.root = root
-        self.coco = COCO(ann_file)
-        # Use all image IDs (for train or val, annotation file should correspond)
-        self.ids = list(self.coco.getImgIds())
-        self.transform = transform
         self.is_train = is_train
+        self.transform = transform
+
+        # Load COCO annotations
+        self.coco = COCO(ann_file)
+        self.image_ids = list(self.coco.getImgIds())
+
+        # Store parameters that the original __getitem__ uses
+        self.num_joints = cfg.MODEL.NUM_JOINTS
+        self.num_joints_half_body = cfg.DATASET.NUM_JOINTS_HALF_BODY
+        self.prob_half_body = cfg.DATASET.PROB_HALF_BODY
+        self.scale_factor = cfg.DATASET.SCALE_FACTOR
+        self.rotation_factor = cfg.DATASET.ROT_FACTOR
+        self.flip = cfg.DATASET.FLIP
+        self.flip_pairs = cfg.DATASET.FLIP_PAIRS  # e.g. [[1,2],[3,4],...]
+        self.image_size = np.array([cfg.MODEL.IMAGE_SIZE[0], cfg.MODEL.IMAGE_SIZE[1]], dtype=np.int32)
+        self.color_rgb = cfg.DATASET.COLOR_RGB
+        self.data_format = cfg.DATASET.DATA_FORMAT  # assume “dir” (not zip) here
+
+        # Build a minimal “db” with exactly the fields the original __getitem__ expects
+        self.db = []
+        for img_id in self.image_ids:
+            img_info = self.coco.loadImgs(img_id)[0]
+            ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=False)
+            anns = self.coco.loadAnns(ann_ids)
+
+            # For simplicity, take only the first annotation per image (or skip if no keypoints)
+            for ann in anns:
+                if ann.get('num_keypoints', 0) == 0:
+                    continue
+                bbox = ann['bbox']
+                kp = np.array(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
+                joints_3d = np.zeros((self.num_joints, 3), dtype=np.float32)
+                joints_3d_vis = np.zeros((self.num_joints, 3), dtype=np.float32)
+                for j in range(self.num_joints):
+                    joints_3d[j, 0:2] = kp[j, 0:2]
+                    v = kp[j, 2]
+                    joints_3d_vis[j, 0] = v
+                    joints_3d_vis[j, 1] = v
+
+                # center and scale from bbox
+                x, y, w, h = bbox
+                center = np.array([x + w * 0.5, y + h * 0.5], dtype=np.float32)
+                aspect = self.image_size[0] * 1.0 / self.image_size[1]
+                if w > aspect * h:
+                    h = w * 1.0 / aspect
+                elif w < aspect * h:
+                    w = h * aspect
+                scale = np.array([w / 200.0, h / 200.0], dtype=np.float32) * 1.25
+
+                image_path = os.path.join(self.root, img_info['file_name'])
+                self.db.append({
+                    'image': image_path,
+                    'filename': img_info['file_name'],
+                    'imgnum': img_id,
+                    'joints_3d': joints_3d,
+                    'joints_3d_vis': joints_3d_vis,
+                    'center': center,
+                    'scale': scale,
+                    'score': 1
+                })
 
     def __len__(self):
-        return len(self.ids)
+        return len(self.db)
 
     def __getitem__(self, idx):
-        img_id = self.ids[idx]
-        img_info = self.coco.loadImgs(img_id)[0]
-        img_path = os.path.join(self.root, img_info['file_name'])
-        image = Image.open(img_path).convert("RGB")
-    
-        ann_ids = self.coco.getAnnIds(imgIds=img_id, iscrowd=False)
-        anns = self.coco.loadAnns(ann_ids)
-    
-        # Collect all keypoints for this image (N_instances × 17 × 3)
-        keypoints = []
-        for ann in anns:
-            if 'keypoints' in ann and np.sum(ann['keypoints']) > 0:
-                kpt = np.array(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
-                keypoints.append(kpt)
-        if len(keypoints) > 0:
-            keypoints = np.stack(keypoints, axis=0)
-        else:
-            keypoints = np.zeros((0, 17, 3), dtype=np.float32)
-    
-        # 1) Apply transforms to the PIL image → a Tensor
+        db_rec = copy.deepcopy(self.db[idx])
+
+        image_file = db_rec['image']
+        filename = db_rec.get('filename', '')
+        imgnum = db_rec.get('imgnum', '')
+
+        # Read image (assuming no zip format)
+        data_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+        if self.color_rgb:
+            data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
+
+        if data_numpy is None:
+            raise ValueError(f'Fail to read {image_file}')
+
+        joints = db_rec['joints_3d']
+        joints_vis = db_rec['joints_3d_vis']
+
+        c = db_rec['center']
+        s = db_rec['scale']
+        score = db_rec.get('score', 1)
+        r = 0
+
+        if self.is_train:
+            if (np.sum(joints_vis[:, 0]) > self.num_joints_half_body
+                    and np.random.rand() < self.prob_half_body):
+                c_half, s_half = self.half_body_transform(joints, joints_vis)
+                if c_half is not None and s_half is not None:
+                    c, s = c_half, s_half
+
+            # Scale and rotation augment
+            sf = self.scale_factor
+            rf = self.rotation_factor
+            s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
+            r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.6 else 0
+
+            # Horizontal flip
+            if self.flip and random.random() <= 0.5:
+                data_numpy = data_numpy[:, ::-1, :]
+                joints, joints_vis = fliplr_joints(joints, joints_vis, data_numpy.shape[1], self.flip_pairs)
+                c[0] = data_numpy.shape[1] - c[0] - 1
+
+        trans = get_affine_transform(c, s, r, self.image_size)
+        input_img = cv2.warpAffine(
+            data_numpy,
+            trans,
+            (int(self.image_size[0]), int(self.image_size[1])),
+            flags=cv2.INTER_LINEAR
+        )
+
         if self.transform:
-            image = self.transform(image)  # now image is a Tensor of shape (3, H, W)
-    
-        # 2) Build a dummy "target" heatmap tensor of shape (17, H_out, W_out)
-        #    (you can adjust H_out,W_out to match your network’s output size).
-        num_joints = 17
-        heatmap_size = (cfg.MODEL.HEATMAP_SIZE[1], cfg.MODEL.HEATMAP_SIZE[0])  # (H_out, W_out)
-        target = torch.zeros((num_joints, heatmap_size[0], heatmap_size[1]), dtype=torch.float32)
-    
-        # 3) Build a dummy "target_weight" of shape (17, 1)
-        target_weight = torch.ones((num_joints, 1), dtype=torch.float32)
-    
-        # 4) Put anything else you need into meta (e.g. image_id, original size, etc.)
+            input_tensor = self.transform(input_img)  # a Tensor
+        else:
+            # Convert BGR→RGB if needed, then HWC→CHW, then to Tensor
+            input_tensor = torch.from_numpy(input_img.transpose(2, 0, 1)).float().div(255.0)
+
+        # Transform joint coordinates
+        for i in range(self.num_joints):
+            if joints_vis[i, 0] > 0:
+                joints[i, 0:2] = affine_transform(joints[i, 0:2], trans)
+
+        # Generate target heatmap and weight (same as original)
+        target, target_weight = self.generate_target(joints, joints_vis)
+        target = torch.from_numpy(target)
+        target_weight = torch.from_numpy(target_weight)
+
         meta = {
-            'image_id': img_id,
-            'orig_size': (img_info['width'], img_info['height']),
-            # if you want to pass keypoints through, you could also do:
-            # 'keypoints': keypoints  
+            'image': image_file,
+            'filename': filename,
+            'imgnum': imgnum,
+            'joints': joints,
+            'joints_vis': joints_vis,
+            'center': c,
+            'scale': s,
+            'rotation': r,
+            'score': score
         }
-    
-        return image, target, target_weight, meta
+
+        return input_tensor, target, target_weight, meta
+
 
 
     def evaluate(self, predictions, output_dir):
