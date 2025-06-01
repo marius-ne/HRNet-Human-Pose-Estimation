@@ -18,7 +18,6 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn  
 import torch.optim  
 import torch.utils.data  
-import torch.utils.data.distributed  
 import torchvision.transforms as transforms  
 from tensorboardX import SummaryWriter  
 
@@ -36,13 +35,16 @@ from utils.utils import get_model_summary
 # Import our new minimal dataset class  
 from dataset.minimal_coco import MinimalCOCODataset  
 
-import models  
 
+# Collate function must unpack the 4-tuple returned by __getitem__
 def custom_collate(batch):
-    images = torch.stack([item['image'] for item in batch], dim=0)
-    keypoints = [item['keypoints'] for item in batch]
-    img_ids = [item['img_id'] for item in batch]
-    return {'image': images, 'keypoints': keypoints, 'img_id': img_ids}
+    # batch is a list of tuples: (input_tensor, target, target_weight, meta)
+    images         = torch.stack([item[0] for item in batch], dim=0)
+    targets        = torch.stack([item[1] for item in batch], dim=0)
+    target_weights = torch.stack([item[2] for item in batch], dim=0)
+    metas          = [item[3] for item in batch]
+    return images, targets, target_weights, metas
+
 
 def parse_args():  
     parser = argparse.ArgumentParser(description='Train keypoints network')  
@@ -133,16 +135,16 @@ def main():
         std=[0.229, 0.224, 0.225]  
     )  
 
-    # Construct paths for training images and annotation JSON
+    # Construct paths for training images and annotation JSON  
     train_images_dir = os.path.join(  
-        cfg.DATASET.ROOT, 'images'
+        cfg.DATASET.ROOT, 'images'  
     )  
     train_ann_file   = os.path.join(  
         cfg.DATASET.ROOT, 'annotations', f'{cfg.DATASET.TRAIN_SET}.json'  
     )  
 
     valid_images_dir = os.path.join(  
-        cfg.DATASET.ROOT, 'images' 
+        cfg.DATASET.ROOT, 'images'  
     )  
     valid_ann_file   = os.path.join(  
         cfg.DATASET.ROOT, 'annotations', f'{cfg.DATASET.TEST_SET}.json'  
@@ -159,37 +161,36 @@ def main():
         raise FileNotFoundError(f"Validation annotation JSON not found: {valid_ann_file}")  
 
     # Instantiate our minimal COCO-based datasets  
-    train_dataset = MinimalCOCODataset(
-        cfg,
-        root=train_images_dir,
-        ann_file=train_ann_file,
-        image_set=cfg.DATASET.TRAIN_SET,
-        is_train=True,
-        transform=transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])
-    )
-    
-    valid_dataset = MinimalCOCODataset(
-        cfg,
-        root=valid_images_dir,
-        ann_file=valid_ann_file,
-        image_set=cfg.DATASET.TEST_SET,
-        is_train=False,
-        transform=transforms.Compose([
-            transforms.ToTensor(),
-            normalize,
-        ])
-    )
+    train_dataset = MinimalCOCODataset(  
+        cfg,  
+        root=train_images_dir,  
+        ann_file=train_ann_file,  
+        image_set=cfg.DATASET.TRAIN_SET,  
+        is_train=True,  
+        transform=transforms.Compose([  
+            transforms.ToTensor(),  
+            normalize,  
+        ])  
+    )  
 
+    valid_dataset = MinimalCOCODataset(  
+        cfg,  
+        root=valid_images_dir,  
+        ann_file=valid_ann_file,  
+        image_set=cfg.DATASET.TEST_SET,  
+        is_train=False,  
+        transform=transforms.Compose([  
+            transforms.ToTensor(),  
+            normalize,  
+        ])  
+    )  
 
     train_loader = torch.utils.data.DataLoader(  
         train_dataset,  
         batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU * len(device_ids),  
         shuffle=cfg.TRAIN.SHUFFLE,  
         num_workers=cfg.WORKERS,  
-        pin_memory=cfg.PIN_MEMORY,
+        pin_memory=cfg.PIN_MEMORY,  
         collate_fn=custom_collate  
     )  
 
@@ -198,7 +199,7 @@ def main():
         batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(device_ids),  
         shuffle=False,  
         num_workers=cfg.WORKERS,  
-        pin_memory=cfg.PIN_MEMORY,
+        pin_memory=cfg.PIN_MEMORY,  
         collate_fn=custom_collate  
     )  
 
