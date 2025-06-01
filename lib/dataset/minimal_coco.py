@@ -60,9 +60,8 @@ class MinimalCOCODataset(Dataset):
                 continue  # no keypoints -> skip this image
 
             # image_filepath is relative to self.root
-            img_rel_path = ann['image_filepath']
-            image_path = os.path.join(self.root, img_rel_path)
-            filename = os.path.basename(img_rel_path)
+            filename = os.path.basename(ann['image_filepath'])
+            image_path = os.path.join(self.root, filename)
 
             # Keypoints array (reshape into K×3)
             kp = np.array(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
