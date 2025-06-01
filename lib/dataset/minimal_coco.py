@@ -8,9 +8,10 @@ from torch.utils.data import Dataset
 from pycocotools.coco import COCO
 from utils.transforms import get_affine_transform, affine_transform, fliplr_joints
 from collections import defaultdict
+from . import JointsDataset
 import json
 
-class MinimalCOCODataset(Dataset):
+class MinimalCOCODataset(JointsDataset):
     def __init__(self, cfg, root, ann_file, image_set, is_train, transform=None):
         super().__init__()
         self.cfg = cfg
