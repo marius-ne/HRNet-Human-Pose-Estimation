@@ -18,19 +18,18 @@ class MinimalCOCODataset(Dataset):
         self.is_train = is_train
         self.transform = transform
 
-        # Load COCO annotations
-
-        # Store parameters that the original __getitem__ uses
+        # Store parameters that __getitem__ needs
         self.num_joints = cfg.MODEL.NUM_JOINTS
         self.num_joints_half_body = cfg.DATASET.NUM_JOINTS_HALF_BODY
         self.prob_half_body = cfg.DATASET.PROB_HALF_BODY
         self.scale_factor = cfg.DATASET.SCALE_FACTOR
         self.rotation_factor = cfg.DATASET.ROT_FACTOR
         self.flip = cfg.DATASET.FLIP
-        self.flip_pairs = cfg.DATASET.FLIP_PAIRS  # e.g. [[1,2],[3,4],...]
-        self.image_size = np.array([cfg.MODEL.IMAGE_SIZE[0], cfg.MODEL.IMAGE_SIZE[1]], dtype=np.int32)
+        self.flip_pairs = cfg.DATASET.FLIP_PAIRS
+        self.image_size = np.array(
+            [cfg.MODEL.IMAGE_SIZE[0], cfg.MODEL.IMAGE_SIZE[1]], dtype=np.int32
+        )
         self.color_rgb = cfg.DATASET.COLOR_RGB
-        self.data_format = cfg.DATASET.DATA_FORMAT  # assume “dir” (not zip) here
 
         # Load the JSON list of annotations directly
         with open(ann_file, 'r') as f:
@@ -45,48 +44,55 @@ class MinimalCOCODataset(Dataset):
         # Now set image_ids to the keys that actually exist in the JSON
         self.image_ids = list(anns_per_image.keys())
 
-
-        # Build a minimal “db” with exactly the fields the original __getitem__ expects
+        # Build a minimal “db” with exactly the fields __getitem__ expects
         self.db = []
         for img_id in self.image_ids:
             anns = anns_per_image[img_id]
-            # Each ann has "image_filepath" (relative to self.root) and keypoints, bbox, etc.
-            image_path = os.path.join(self.root, anns[0]['image_filepath'])
-            # For simplicity, take only the first annotation per image (or skip if no keypoints)
-            for ann in anns:
-                if ann.get('num_keypoints', 0) == 0:
-                    continue
-                bbox = ann['bbox']
-                kp = np.array(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
-                joints_3d = np.zeros((self.num_joints, 3), dtype=np.float32)
-                joints_3d_vis = np.zeros((self.num_joints, 3), dtype=np.float32)
-                for j in range(self.num_joints):
-                    joints_3d[j, 0:2] = kp[j, 0:2]
-                    v = kp[j, 2]
-                    joints_3d_vis[j, 0] = v
-                    joints_3d_vis[j, 1] = v
 
-                # center and scale from bbox
-                x, y, w, h = bbox
-                center = np.array([x + w * 0.5, y + h * 0.5], dtype=np.float32)
-                aspect = self.image_size[0] * 1.0 / self.image_size[1]
-                if w > aspect * h:
-                    h = w * 1.0 / aspect
-                elif w < aspect * h:
-                    w = h * aspect
-                scale = np.array([w / 200.0, h / 200.0], dtype=np.float32) * 1.25
+            # Use first annotation per image (drop the rest)
+            ann = None
+            for a in anns:
+                if a.get('num_keypoints', 0) > 0:
+                    ann = a
+                    break
+            if ann is None:
+                continue  # no keypoints -> skip this image
 
-                image_path = os.path.join(self.root, img_info['file_name'])
-                self.db.append({
-                    'image': image_path,
-                    'filename': img_info['file_name'],
-                    'imgnum': img_id,
-                    'joints_3d': joints_3d,
-                    'joints_3d_vis': joints_3d_vis,
-                    'center': center,
-                    'scale': scale,
-                    'score': 1
-                })
+            # image_filepath is relative to self.root
+            img_rel_path = ann['image_filepath']
+            image_path = os.path.join(self.root, img_rel_path)
+            filename = os.path.basename(img_rel_path)
+
+            # Keypoints array (reshape into K×3)
+            kp = np.array(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
+            joints_3d = np.zeros((self.num_joints, 3), dtype=np.float32)
+            joints_3d_vis = np.zeros((self.num_joints, 3), dtype=np.float32)
+            for j in range(self.num_joints):
+                joints_3d[j, 0:2] = kp[j, 0:2]
+                v = kp[j, 2]
+                joints_3d_vis[j, 0] = v
+                joints_3d_vis[j, 1] = v
+
+            # Center & scale from bbox
+            x, y, w, h = ann['bbox']
+            center = np.array([x + w * 0.5, y + h * 0.5], dtype=np.float32)
+            aspect = self.image_size[0] * 1.0 / self.image_size[1]
+            if w > aspect * h:
+                h = w * 1.0 / aspect
+            elif w < aspect * h:
+                w = h * aspect
+            scale = np.array([w / 200.0, h / 200.0], dtype=np.float32) * 1.25
+
+            self.db.append({
+                'image': image_path,
+                'filename': filename,
+                'imgnum': img_id,
+                'joints_3d': joints_3d,
+                'joints_3d_vis': joints_3d_vis,
+                'center': center,
+                'scale': scale,
+                'score': 1.0
+            })
 
     def __len__(self):
         return len(self.db)
