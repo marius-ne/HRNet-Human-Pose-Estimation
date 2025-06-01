@@ -61,7 +61,9 @@ class MinimalCOCODataset(Dataset):
         sample = {'image': image, 'keypoints': keypoints, 'img_id': img_id}
 
         if self.transform:
-            sample = self.transform(sample)
+            img_tensor = self.transform(image)       # transform(image) => Tensor
+            sample['image'] = img_tensor
+
 
         return sample
 
