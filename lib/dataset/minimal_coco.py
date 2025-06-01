@@ -19,7 +19,7 @@ class MinimalCOCODataset(Dataset):
 
         # Load COCO annotations
         self.coco = COCO(ann_file)
-        self.image_ids = list(self.coco.getImgIds())
+        self.image_ids = [int(x) for x in self.coco.getImgIds()]
 
         # Store parameters that the original __getitem__ uses
         self.num_joints = cfg.MODEL.NUM_JOINTS
