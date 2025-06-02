@@ -177,7 +177,7 @@ def main():
             normalize,  
         ])  
     )  
-    N = 100
+    N = len(train_dataset)
     train_dataset = Subset(train_dataset, range(N))
 
     train_loader = torch.utils.data.DataLoader(  
