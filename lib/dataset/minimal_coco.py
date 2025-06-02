@@ -60,6 +60,8 @@ class MinimalCOCODataset(JointsDataset):
         with open(ann_file, 'r') as f:
             raw_data = json.load(f)
 
+        self.coco = COCO(ann_file) 
+
         # raw_data is a dict with keys "images", "annotations", etc.
         annotations = raw_data['annotations']
 
@@ -233,3 +235,5 @@ class MinimalCOCODataset(JointsDataset):
         # Returns a dict of the main statistics if needed
         stats_names = ['AP', 'Ap .5', 'Ap .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5', 'AR .75', 'AR (M)', 'AR (L)']
         return {name: coco_eval.stats[i] for i, name in enumerate(stats_names)}, coco_eval.stats[0]
+    
+
