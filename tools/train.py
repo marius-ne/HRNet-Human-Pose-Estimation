@@ -227,10 +227,14 @@ def main():
         # train for one epoch  
         train(cfg, train_loader, model, criterion, optimizer, epoch,  
               final_output_dir, tb_log_dir, writer_dict)  
-
+        # Determine correct dataset reference for validation
+        if isinstance(valid_dataset, Subset):
+            val_dataset_for_eval = valid_dataset.dataset
+        else:
+            val_dataset_for_eval = valid_dataset
         # evaluate on validation set  
         perf_indicator = validate(  
-            cfg, valid_loader, valid_dataset.dataset, model, criterion,  
+            cfg, valid_loader, val_dataset_for_eval, model, criterion,  
             final_output_dir, tb_log_dir, writer_dict  
         )  
 
