@@ -3,6 +3,7 @@ import random
 import cv2
 import torch
 import numpy as np
+np.float = float
 import os
 from torch.utils.data import Dataset
 from pycocotools.cocoeval import COCOeval
@@ -223,7 +224,7 @@ class MinimalCOCODataset(JointsDataset):
         os.makedirs(output_dir, exist_ok=True)
         res_file = os.path.join(output_dir, "keypoint_results.json")
 
-        
+
         # Debug: check structure
         print("Type of predictions:", type(predictions))
         if len(predictions) > 0:
