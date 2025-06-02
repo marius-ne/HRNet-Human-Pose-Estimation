@@ -5,6 +5,7 @@ import torch
 import numpy as np
 import os
 from torch.utils.data import Dataset
+from pycocotools.cocoeval import COCOeval
 from pycocotools.coco import COCO
 from utils.transforms import get_affine_transform, affine_transform, fliplr_joints
 from collections import defaultdict
