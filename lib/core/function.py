@@ -198,8 +198,15 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
                 
-            all_image_ids.extend(meta['imgnum'].tolist() if 'imgnum' in meta else meta['image_id'].tolist())
-                
+            # With this:
+            if 'imgnum' in meta:
+                all_image_ids.append(int(meta['imgnum']))
+            else:
+                all_image_ids.append(int(meta['image_id']))
+
+        print("all_preds size:", len(all_preds))
+        print("all_image_ids size:", len(all_image_ids))
+        
         # Build COCO-format predictions
         coco_preds = []
         for i in range(len(all_preds)):
