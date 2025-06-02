@@ -38,20 +38,6 @@ from dataset.minimal_coco import MinimalCOCODataset
 # Import Subset for debugging
 from torch.utils.data import Subset
 
-# Updated collate function: build a dict of lists for 'meta'  
-def custom_collate(batch):
-    # batch is a list of tuples: (input_tensor, target, target_weight, meta)
-    images         = torch.stack([item[0] for item in batch], dim=0)
-    targets        = torch.stack([item[1] for item in batch], dim=0)
-    target_weights = torch.stack([item[2] for item in batch], dim=0)
-    meta_list      = [item[3] for item in batch]
-
-    # Collate 'meta' into a dict of lists
-    meta_dict = {}
-    for key in meta_list[0].keys():
-        meta_dict[key] = [m[key] for m in meta_list]
-
-    return images, targets, target_weights, meta_dict
 
 
 def parse_args():  
@@ -200,8 +186,7 @@ def main():
         batch_size=cfg.TRAIN.BATCH_SIZE_PER_GPU * len(device_ids),  
         shuffle=cfg.TRAIN.SHUFFLE,  
         num_workers=cfg.WORKERS,  
-        pin_memory=cfg.PIN_MEMORY,  
-        collate_fn=custom_collate  
+        pin_memory=cfg.PIN_MEMORY
     )  
 
     valid_loader = torch.utils.data.DataLoader(  
@@ -209,8 +194,7 @@ def main():
         batch_size=cfg.TEST.BATCH_SIZE_PER_GPU * len(device_ids),  
         shuffle=False,  
         num_workers=cfg.WORKERS,  
-        pin_memory=cfg.PIN_MEMORY,  
-        collate_fn=custom_collate  
+        pin_memory=cfg.PIN_MEMORY
     )  
 
     best_perf = 0.0  
