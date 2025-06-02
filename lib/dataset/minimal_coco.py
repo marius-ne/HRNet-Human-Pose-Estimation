@@ -222,6 +222,9 @@ class MinimalCOCODataset(JointsDataset):
         """
         os.makedirs(output_dir, exist_ok=True)
         res_file = os.path.join(output_dir, "keypoint_results.json")
+        # Flatten predictions if needed
+        if len(predictions) > 0 and isinstance(predictions[0], list):
+            predictions = [item for sublist in predictions for item in sublist]
         # Convert predictions to pure Python types
         predictions_py = to_python_type(predictions)
         with open(res_file, 'w') as f:
@@ -235,5 +238,4 @@ class MinimalCOCODataset(JointsDataset):
         # Returns a dict of the main statistics if needed
         stats_names = ['AP', 'Ap .5', 'Ap .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5', 'AR .75', 'AR (M)', 'AR (L)']
         return {name: coco_eval.stats[i] for i, name in enumerate(stats_names)}, coco_eval.stats[0]
-    
 
