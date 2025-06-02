@@ -200,10 +200,11 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
         # Build COCO-format predictions
         coco_preds = []
         for i in range(len(all_preds)):
-            keypoints = all_preds[i].reshape(-1).tolist()  # [x1, y1, v1, ...]
-            # If you have per-sample scores, use all_boxes[i, 5], else use 1.0
+            keypoints = all_preds[i].reshape(-1).tolist()
+            # Use the image_id from meta['imgnum'] or meta['image_id']
+            image_id = int(meta['imgnum'][i]) if 'imgnum' in meta else int(meta['image_id'][i])
             coco_preds.append({
-                "image_id": int(val_dataset.image_ids[i]) if hasattr(val_dataset, "image_ids") else i,
+                "image_id": image_id,
                 "category_id": 1,
                 "keypoints": keypoints,
                 "score": float(all_boxes[i, 5]) if all_boxes is not None else 1.0
