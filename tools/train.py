@@ -35,6 +35,8 @@ from utils.utils import get_model_summary
 # Import our new minimal dataset class  
 from dataset.minimal_coco import MinimalCOCODataset  
 
+# Import Subset for debugging
+from torch.utils.data import Subset
 
 # Updated collate function: build a dict of lists for 'meta'  
 def custom_collate(batch):
@@ -178,6 +180,8 @@ def main():
             normalize,  
         ])  
     )  
+    N = 100
+    train_dataset = Subset(train_dataset, range(N))
 
     valid_dataset = MinimalCOCODataset(  
         cfg,  
