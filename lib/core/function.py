@@ -97,36 +97,37 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
 def validate(config, val_loader, val_dataset, model, criterion, output_dir,
              tb_log_dir, writer_dict=None):
     batch_time = AverageMeter()
-    losses = AverageMeter()
-    acc = AverageMeter()
+    losses     = AverageMeter()
+    acc        = AverageMeter()
 
+    # switch to evaluate mode
     model.eval()
 
-    num_samples = len(val_dataset)
-    all_preds = np.zeros(
+    num_samples = len(val_dataset)  # total size of underlying dataset
+    all_preds   = np.zeros(
         (num_samples, config.MODEL.NUM_JOINTS, 3),
         dtype=np.float32
     )
-    all_boxes = np.zeros((num_samples, 6))
-    image_path = []
+    all_boxes   = np.zeros((num_samples, 6))
+    image_path  = []
     all_image_ids = []
-    filenames = []
-    imgnums = []
-    idx = 0
+    filenames   = []
+    imgnums     = []
+    idx         = 0
 
     with torch.no_grad():
         end = time.time()
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
-            # ---- 1) forward pass ----
+            # -------- forward pass --------
             outputs = model(input)
             if isinstance(outputs, list):
                 output = outputs[-1]
             else:
                 output = outputs
 
-            # ---- 2) optional flip‐test (only if config.TEST.FLIP_TEST is True) ----
+            # -------- flip‐test (only if enabled) --------
             if config.TEST.FLIP_TEST:
-                # flip the input along width dimension, run model again, then unflip and average
+                # flip input, run model, unflip & average
                 input_flipped = np.flip(input.cpu().numpy(), axis=3).copy()
                 input_flipped = torch.from_numpy(input_flipped).cuda()
                 outputs_flipped = model(input_flipped)
@@ -136,58 +137,66 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 else:
                     output_flipped = outputs_flipped
 
-                # convert flipped heatmap back to original ordering
-                output_flipped = flip_back(output_flipped.cpu().numpy(),
-                                           val_dataset.flip_pairs)
+                output_flipped = flip_back(
+                    output_flipped.cpu().numpy(),
+                    val_dataset.flip_pairs
+                )
                 output_flipped = torch.from_numpy(output_flipped.copy()).cuda()
 
                 if config.TEST.SHIFT_HEATMAP:
-                    # shift by one pixel if requested
                     output_flipped[:, :, :, 1:] = output_flipped.clone()[:, :, :, 0:-1]
 
-                # now average original + flipped
                 output = (output + output_flipped) * 0.5
 
-            # ---- 3) compute loss & accuracy ----
-            target = target.cuda(non_blocking=True)
+            # -------- compute loss & accuracy --------
+            target        = target.cuda(non_blocking=True)
             target_weight = target_weight.cuda(non_blocking=True)
             loss = criterion(output, target, target_weight)
 
             num_images = input.size(0)
             losses.update(loss.item(), num_images)
-            _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
-                                             target.cpu().numpy())
+            _, avg_acc, cnt, pred = accuracy(
+                output.cpu().numpy(),
+                target.cpu().numpy()
+            )
             acc.update(avg_acc, cnt)
 
-            # ---- 4) measure elapsed time ----
+            # -------- timing --------
             batch_time.update(time.time() - end)
             end = time.time()
 
-            # ---- 5) gather centers, scales, scores ----
-            c = meta['center'].numpy()
-            s = meta['scale'].numpy()
-            score = meta['score'].numpy()
+            # -------- get final keypoints --------
+            c     = meta['center'].numpy()    # shape: (batch_size, 2)
+            s     = meta['scale'].numpy()     # shape: (batch_size, 2)
+            score = meta['score'].numpy()     # shape: (batch_size,)
 
             preds, maxvals = get_final_preds(
-                config, output.clone().cpu().numpy(), c, s)
+                config,
+                output.clone().cpu().numpy(),
+                c, s
+            )
 
-            # ---- 6) store into all_preds / all_boxes ----
+            # -------- write into all_preds / all_boxes --------
             all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
             all_preds[idx:idx + num_images, :, 2:3] = maxvals
 
             all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
             all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
-            all_boxes[idx:idx + num_images, 4] = np.prod(s * 200, axis=1)
-            all_boxes[idx:idx + num_images, 5] = score
+            all_boxes[idx:idx + num_images, 4]    = np.prod(s * 200, axis=1)
+            all_boxes[idx:idx + num_images, 5]    = score
+
             image_path.extend(meta['image'])
 
-            # ---- 7) gather image IDs (one per sample in the batch) ----
+            # -------- collect image IDs (one per sample) --------
             if 'imgnum' in meta:
-                batch_ids = meta['imgnum'].tolist()
+                batch_ids = meta['imgnum'].tolist()     # e.g. [5708, 10331, …]
             else:
                 batch_ids = meta['image_id'].tolist()
+
+            # each element in batch_ids is already a Python number or convertible to int
             all_image_ids.extend([int(x) for x in batch_ids])
 
+            # advance idx by how many images this batch had
             idx += num_images
 
             if i % config.PRINT_FREQ == 0:
@@ -205,23 +214,28 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 save_debug_images(config, input, meta, target, pred * 4, output,
                                   prefix)
 
-        # (Optional) sanity check: lengths must match
-        # print("all_preds size:", len(all_preds))
-        # print("all_image_ids size:", len(all_image_ids))
+        # ─── After the loop: slice to exactly how many samples we saw ───
+        all_preds = all_preds[:idx]
+        all_boxes = all_boxes[:idx]
 
-        # ---- 8) build COCO‐format predictions ----
+        # (Optional debug)
+        # print("Processed samples (idx):", idx)
+        # print("len(all_image_ids):", len(all_image_ids))
+        # assert idx == len(all_image_ids), "Still a mismatch: {} vs {}".format(idx, len(all_image_ids))
+
+        # ─── build COCO‐format results only up to `idx` ───
         coco_preds = []
-        for i in range(len(all_preds)):
+        for i in range(idx):
             keypoints = all_preds[i].reshape(-1).tolist()
-            image_id = int(all_image_ids[i])
+            image_id  = int(all_image_ids[i])
             coco_preds.append({
-                "image_id": image_id,
+                "image_id":  image_id,
                 "category_id": 1,
-                "keypoints": keypoints,
-                "score": float(all_boxes[i, 5]) if all_boxes is not None else 1.0
+                "keypoints":  keypoints,
+                "score":      float(all_boxes[i, 5]) if all_boxes is not None else 1.0
             })
 
-        # ---- 9) run evaluation & print results ----
+        # ─── finally run the dataset's evaluate() ───
         name_values, perf_indicator = val_dataset.evaluate(
             config, coco_preds, output_dir, all_boxes, image_path,
             filenames, imgnums
@@ -235,19 +249,19 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             _print_name_value(name_values, model_name)
 
         if writer_dict:
-            writer = writer_dict['writer']
+            writer       = writer_dict['writer']
             global_steps = writer_dict['valid_global_steps']
             writer.add_scalar('valid_loss', losses.avg, global_steps)
-            writer.add_scalar('valid_acc', acc.avg, global_steps)
+            writer.add_scalar('valid_acc',  acc.avg,   global_steps)
             if isinstance(name_values, list):
                 for name_value in name_values:
                     writer.add_scalars('valid', dict(name_value), global_steps)
             else:
                 writer.add_scalars('valid', dict(name_values), global_steps)
+
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator
-
 
 
 
