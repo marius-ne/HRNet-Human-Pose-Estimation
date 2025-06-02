@@ -100,7 +100,6 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     losses = AverageMeter()
     acc = AverageMeter()
 
-    # switch to evaluate mode
     model.eval()
 
     num_samples = len(val_dataset)
@@ -114,38 +113,57 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     filenames = []
     imgnums = []
     idx = 0
+
     with torch.no_grad():
         end = time.time()
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
-            # compute output
+            # ---- 1) forward pass ----
             outputs = model(input)
             if isinstance(outputs, list):
                 output = outputs[-1]
             else:
                 output = outputs
 
+            # ---- 2) optional flip‐test (only if config.TEST.FLIP_TEST is True) ----
             if config.TEST.FLIP_TEST:
-                # (flip‐test code omitted for brevity)
-                # ...
+                # flip the input along width dimension, run model again, then unflip and average
+                input_flipped = np.flip(input.cpu().numpy(), axis=3).copy()
+                input_flipped = torch.from_numpy(input_flipped).cuda()
+                outputs_flipped = model(input_flipped)
+
+                if isinstance(outputs_flipped, list):
+                    output_flipped = outputs_flipped[-1]
+                else:
+                    output_flipped = outputs_flipped
+
+                # convert flipped heatmap back to original ordering
+                output_flipped = flip_back(output_flipped.cpu().numpy(),
+                                           val_dataset.flip_pairs)
+                output_flipped = torch.from_numpy(output_flipped.copy()).cuda()
+
+                if config.TEST.SHIFT_HEATMAP:
+                    # shift by one pixel if requested
+                    output_flipped[:, :, :, 1:] = output_flipped.clone()[:, :, :, 0:-1]
+
+                # now average original + flipped
                 output = (output + output_flipped) * 0.5
 
+            # ---- 3) compute loss & accuracy ----
             target = target.cuda(non_blocking=True)
             target_weight = target_weight.cuda(non_blocking=True)
-
             loss = criterion(output, target, target_weight)
 
             num_images = input.size(0)
-            # measure accuracy and record loss
             losses.update(loss.item(), num_images)
             _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
                                              target.cpu().numpy())
-
             acc.update(avg_acc, cnt)
 
-            # measure elapsed time
+            # ---- 4) measure elapsed time ----
             batch_time.update(time.time() - end)
             end = time.time()
 
+            # ---- 5) gather centers, scales, scores ----
             c = meta['center'].numpy()
             s = meta['scale'].numpy()
             score = meta['score'].numpy()
@@ -153,24 +171,21 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
             preds, maxvals = get_final_preds(
                 config, output.clone().cpu().numpy(), c, s)
 
+            # ---- 6) store into all_preds / all_boxes ----
             all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
             all_preds[idx:idx + num_images, :, 2:3] = maxvals
-            # double check this all_boxes parts
+
             all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
             all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
-            all_boxes[idx:idx + num_images, 4] = np.prod(s * 200, 1)
+            all_boxes[idx:idx + num_images, 4] = np.prod(s * 200, axis=1)
             all_boxes[idx:idx + num_images, 5] = score
             image_path.extend(meta['image'])
 
-            # ─────── Fix for gathering image IDs ───────
-            # meta['imgnum'] is a tensor of shape (batch_size,); we need one entry
-            # per sample in the batch. So convert to Python list and extend.
+            # ---- 7) gather image IDs (one per sample in the batch) ----
             if 'imgnum' in meta:
-                batch_ids = meta['imgnum'].tolist()          # e.g. [5708, 10331, ...]
+                batch_ids = meta['imgnum'].tolist()
             else:
                 batch_ids = meta['image_id'].tolist()
-
-            # Make sure each is an int, then extend our list
             all_image_ids.extend([int(x) for x in batch_ids])
 
             idx += num_images
@@ -187,18 +202,18 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 prefix = '{}_{}'.format(
                     os.path.join(output_dir, 'val'), i
                 )
-                save_debug_images(config, input, meta, target, pred*4, output,
+                save_debug_images(config, input, meta, target, pred * 4, output,
                                   prefix)
 
-        # (Optional) sanity check:
+        # (Optional) sanity check: lengths must match
         # print("all_preds size:", len(all_preds))
         # print("all_image_ids size:", len(all_image_ids))
 
-        # Build COCO‐format predictions
+        # ---- 8) build COCO‐format predictions ----
         coco_preds = []
         for i in range(len(all_preds)):
             keypoints = all_preds[i].reshape(-1).tolist()
-            image_id = int(all_image_ids[i])  # now guaranteed to exist
+            image_id = int(all_image_ids[i])
             coco_preds.append({
                 "image_id": image_id,
                 "category_id": 1,
@@ -206,6 +221,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 "score": float(all_boxes[i, 5]) if all_boxes is not None else 1.0
             })
 
+        # ---- 9) run evaluation & print results ----
         name_values, perf_indicator = val_dataset.evaluate(
             config, coco_preds, output_dir, all_boxes, image_path,
             filenames, imgnums
@@ -221,32 +237,17 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
         if writer_dict:
             writer = writer_dict['writer']
             global_steps = writer_dict['valid_global_steps']
-            writer.add_scalar(
-                'valid_loss',
-                losses.avg,
-                global_steps
-            )
-            writer.add_scalar(
-                'valid_acc',
-                acc.avg,
-                global_steps
-            )
+            writer.add_scalar('valid_loss', losses.avg, global_steps)
+            writer.add_scalar('valid_acc', acc.avg, global_steps)
             if isinstance(name_values, list):
                 for name_value in name_values:
-                    writer.add_scalars(
-                        'valid',
-                        dict(name_value),
-                        global_steps
-                    )
+                    writer.add_scalars('valid', dict(name_value), global_steps)
             else:
-                writer.add_scalars(
-                    'valid',
-                    dict(name_values),
-                    global_steps
-                )
+                writer.add_scalars('valid', dict(name_values), global_steps)
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator
+
 
 
 
