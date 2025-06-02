@@ -232,7 +232,7 @@ def main():
 
         # evaluate on validation set  
         perf_indicator = validate(  
-            cfg, valid_loader, valid_dataset.dataset, model, criterion,  
+            cfg, valid_loader, valid_dataset, model, criterion,  
             final_output_dir, tb_log_dir, writer_dict  
         )  
 
