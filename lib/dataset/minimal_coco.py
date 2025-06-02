@@ -12,6 +12,20 @@ from collections import defaultdict
 from dataset.JointsDataset import JointsDataset
 import json
 
+def to_python_type(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.float32, np.float64)):
+        return float(obj)
+    elif isinstance(obj, (np.int32, np.int64)):
+        return int(obj)
+    elif isinstance(obj, dict):
+        return {k: to_python_type(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [to_python_type(v) for v in obj]
+    else:
+        return obj
+
 class MinimalCOCODataset(JointsDataset):
     def __init__(self, cfg, root, ann_file, image_set, is_train, transform=None):
         super().__init__(cfg, root, image_set, is_train, transform)
@@ -188,6 +202,8 @@ class MinimalCOCODataset(JointsDataset):
         }
 
         return input_tensor, target, target_weight, meta
+    
+    
 
 
 
@@ -204,8 +220,10 @@ class MinimalCOCODataset(JointsDataset):
         """
         os.makedirs(output_dir, exist_ok=True)
         res_file = os.path.join(output_dir, "keypoint_results.json")
+        # Convert predictions to pure Python types
+        predictions_py = to_python_type(predictions)
         with open(res_file, 'w') as f:
-            json.dump(predictions, f)
+            json.dump(predictions_py, f)
 
         coco_dt = self.coco.loadRes(res_file)
         coco_eval = COCOeval(self.coco, coco_dt, iouType='keypoints')
