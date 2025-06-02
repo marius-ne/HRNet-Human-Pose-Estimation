@@ -206,7 +206,7 @@ def main():
     # Auto-resume if a checkpoint exists  
     if cfg.AUTO_RESUME and os.path.exists(checkpoint_file):  
         logger.info("=> loading checkpoint '{}'".format(checkpoint_file))  
-        checkpoint = torch.load(checkpoint_file)  
+        checkpoint = torch.load(checkpoint_file, weights_only=False)  
         begin_epoch = checkpoint['epoch']  
         best_perf = checkpoint['perf']  
         last_epoch = checkpoint['epoch']  
