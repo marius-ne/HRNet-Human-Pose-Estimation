@@ -168,6 +168,7 @@ def main():
     )  
     N = 100
     train_dataset = Subset(train_dataset, range(N))
+    valid_dataset = Subset(valid_dataset, range(N))
 
     valid_dataset = MinimalCOCODataset(  
         cfg,  
