@@ -190,18 +190,16 @@ class MinimalCOCODataset(JointsDataset):
 
 
 
-    def evaluate(self, predictions, output_dir):
+    def evaluate(self, config, predictions, output_dir, all_boxes=None, image_path=None, filenames=None, imgnums=None):
         """
         predictions: a list of dicts, each dict in COCO keypoint result format:
             {
-              "image_id": int,
-              "category_id": 1,
-              "keypoints": [x1,y1,v1, x2,y2,v2, ..., x17,y17,v17],
-              "score": float
+            "image_id": int,
+            "category_id": 1,
+            "keypoints": [x1,y1,v1, x2,y2,v2, ..., x17,y17,v17],
+            "score": float
             }
         output_dir: directory where to write the results JSON and evaluation logs.
-
-        Writes predictions to COCO‐style JSON and runs COCOeval on keypoints.
         """
         os.makedirs(output_dir, exist_ok=True)
         res_file = os.path.join(output_dir, "keypoint_results.json")
@@ -215,4 +213,4 @@ class MinimalCOCODataset(JointsDataset):
         coco_eval.summarize()
         # Returns a dict of the main statistics if needed
         stats_names = ['AP', 'Ap .5', 'Ap .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5', 'AR .75', 'AR (M)', 'AR (L)']
-        return {name: coco_eval.stats[i] for i, name in enumerate(stats_names)}
+        return {name: coco_eval.stats[i] for i, name in enumerate(stats_names)}, coco_eval.stats[0]
