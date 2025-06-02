@@ -166,10 +166,6 @@ def main():
             normalize,  
         ])  
     )  
-    N = 100
-    train_dataset = Subset(train_dataset, range(N))
-    valid_dataset = Subset(valid_dataset, range(N))
-
     valid_dataset = MinimalCOCODataset(  
         cfg,  
         root=valid_images_dir,  
@@ -181,6 +177,10 @@ def main():
             normalize,  
         ])  
     )  
+    N = 100
+    train_dataset = Subset(train_dataset, range(N))
+    valid_dataset = Subset(valid_dataset, range(N))
+
 
     train_loader = torch.utils.data.DataLoader(  
         train_dataset,  
