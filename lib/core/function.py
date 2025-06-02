@@ -110,6 +110,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
     )
     all_boxes = np.zeros((num_samples, 6))
     image_path = []
+    all_image_ids = []
     filenames = []
     imgnums = []
     idx = 0
@@ -197,12 +198,13 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir,
                 save_debug_images(config, input, meta, target, pred*4, output,
                                   prefix)
                 
+            all_image_ids.extend(meta['imgnum'].tolist() if 'imgnum' in meta else meta['image_id'].tolist())
+                
         # Build COCO-format predictions
         coco_preds = []
         for i in range(len(all_preds)):
             keypoints = all_preds[i].reshape(-1).tolist()
-            # Use the image_id from meta['imgnum'] or meta['image_id']
-            image_id = int(meta['imgnum'][i]) if 'imgnum' in meta else int(meta['image_id'][i])
+            image_id = int(all_image_ids[i])
             coco_preds.append({
                 "image_id": image_id,
                 "category_id": 1,
