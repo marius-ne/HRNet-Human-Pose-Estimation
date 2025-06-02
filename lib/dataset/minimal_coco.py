@@ -222,13 +222,34 @@ class MinimalCOCODataset(JointsDataset):
         """
         os.makedirs(output_dir, exist_ok=True)
         res_file = os.path.join(output_dir, "keypoint_results.json")
-        # Flatten predictions if needed
+
+        
+        # Debug: check structure
+        print("Type of predictions:", type(predictions))
+        if len(predictions) > 0:
+            print("Type of predictions[0]:", type(predictions[0]))
+            print("Sample prediction:", predictions[0])
+
+        # Flatten all levels if needed
+        def flatten(l):
+            for el in l:
+                if isinstance(el, list):
+                    yield from flatten(el)
+                else:
+                    yield el
+
         if len(predictions) > 0 and isinstance(predictions[0], list):
-            predictions = [item for sublist in predictions for item in sublist]
-        # Convert predictions to pure Python types
+            predictions = list(flatten(predictions))
+
+        # Ensure all are dicts
+        assert all(isinstance(p, dict) for p in predictions), "Each prediction must be a dict"
+
+        # Convert to python types and dump
         predictions_py = to_python_type(predictions)
         with open(res_file, 'w') as f:
             json.dump(predictions_py, f)
+
+
 
         coco_dt = self.coco.loadRes(res_file)
         coco_eval = COCOeval(self.coco, coco_dt, iouType='keypoints')
