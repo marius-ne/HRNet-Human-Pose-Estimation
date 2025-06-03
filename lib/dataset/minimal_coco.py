@@ -90,7 +90,8 @@ class MinimalCOCODataset(JointsDataset):
 
             # image_filepath is relative to self.root
             filename = os.path.basename(ann['image_filepath'])
-            image_path = os.path.join(self.root, filename)
+            rel_filepath = ann['image_filepath']
+            image_path = os.path.join(self.root, rel_filepath)
 
             # Keypoints array (reshape into K×3)
             kp = np.array(ann['keypoints'], dtype=np.float32).reshape(-1, 3)
