@@ -136,7 +136,7 @@ class MinimalCOCODataset(JointsDataset):
 
         rel_path = image_file.replace("\\", "/") 
         # now: "images/training/seq_000080/000000/masked_images/000040.jpg"
-        rel_path = os.path.normpath(rel_path)          
+        image_file = os.path.normpath(rel_path)          
 
         # Read image (assuming no zip format)
         data_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
