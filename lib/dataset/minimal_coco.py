@@ -134,16 +134,14 @@ class MinimalCOCODataset(JointsDataset):
         filename = db_rec.get('filename', '')
         imgnum = db_rec.get('imgnum', '')
 
-        if not os.path.exists(image_file):
-            raise ValueError(f"Image at {image_file} doesn't exist.")
-        
         # Read image (assuming no zip format)
         data_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
-        if self.color_rgb:
-            data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
 
         if data_numpy is None:
             raise ValueError(f'Fail to read {image_file}')
+        
+        if self.color_rgb:
+            data_numpy = cv2.cvtColor(data_numpy, cv2.COLOR_BGR2RGB)
 
         joints = db_rec['joints_3d']
         joints_vis = db_rec['joints_3d_vis']
