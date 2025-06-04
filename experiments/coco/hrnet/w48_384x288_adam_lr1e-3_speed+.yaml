@@ -13,7 +13,7 @@ PRINT_FREQ: 100
 DATASET:
   COLOR_RGB: true
   DATASET: 'coco'
-  DATA_FORMAT: png
+  DATA_FORMAT: jpg
   FLIP: false
   FLIP_PAIRS: [[0,8],[7,5],[3,2]]
   NUM_JOINTS_HALF_BODY: 4
