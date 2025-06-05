@@ -92,12 +92,12 @@ MODEL:
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
-  BATCH_SIZE_PER_GPU: 12
+  BATCH_SIZE_PER_GPU: 24
   SHUFFLE: true
   BEGIN_EPOCH: 0
-  END_EPOCH: 210
+  END_EPOCH: 10
   OPTIMIZER: adam
-  LR: 0.001
+  LR: 0.0005 # adjusted for swisscube
   LR_FACTOR: 0.1
   LR_STEP:
   - 170
@@ -108,7 +108,7 @@ TRAIN:
   MOMENTUM: 0.9
   NESTEROV: false
 TEST:
-  BATCH_SIZE_PER_GPU: 12
+  BATCH_SIZE_PER_GPU: 24
   COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
   BBOX_THRE: 1.0
   IMAGE_THRE: 0.0
