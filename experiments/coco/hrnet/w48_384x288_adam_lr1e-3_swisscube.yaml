@@ -7,17 +7,17 @@ DATA_DIR: ''
 GPUS: (0,1,2,3)
 OUTPUT_DIR: "../drive/MyDrive/COLAB_DATA/SWISSCUBE/coco/output"
 LOG_DIR: "../drive/MyDrive/COLAB_DATA/SWISSCUBE/coco/log"
-WORKERS: 0
+WORKERS: 2
 PRINT_FREQ: 100
 
 DATASET:
   COLOR_RGB: true
   DATASET: 'coco'
-  DATA_FORMAT: png
+  DATA_FORMAT: jpg
   FLIP: false
   FLIP_PAIRS: []
   NUM_JOINTS_HALF_BODY: 4
-  PROB_HALF_BODY: 0.3
+  PROB_HALF_BODY: 0
   ROOT: 'data/coco/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
@@ -26,16 +26,16 @@ DATASET:
 MODEL:
   INIT_WEIGHTS: true
   NAME: pose_hrnet
-  NUM_JOINTS: 10
+  NUM_JOINTS: 8   # for cuboid, CHANGE FOR ANTENNAS!
   PRETRAINED: 'models/pytorch/pose_coco/pose_hrnet_w48_384x288.pth'
   TARGET_TYPE: gaussian
   IMAGE_SIZE:
   - 288
   - 384
-  HEATMAP_SIZE:
-  - 72
-  - 96
-  SIGMA: 3
+  HEATMAP_SIZE: # doubled for swisscube
+  - 144
+  - 192
+  SIGMA: 2  # reduced for swisscube
   EXTRA:
     PRETRAINED_LAYERS:
     - 'conv1'
@@ -92,7 +92,7 @@ MODEL:
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
-  BATCH_SIZE_PER_GPU: 24
+  BATCH_SIZE_PER_GPU: 12
   SHUFFLE: true
   BEGIN_EPOCH: 0
   END_EPOCH: 210
@@ -108,7 +108,7 @@ TRAIN:
   MOMENTUM: 0.9
   NESTEROV: false
 TEST:
-  BATCH_SIZE_PER_GPU: 24
+  BATCH_SIZE_PER_GPU: 12
   COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
   BBOX_THRE: 1.0
   IMAGE_THRE: 0.0
