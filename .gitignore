@@ -12,6 +12,11 @@ Session.vim
 .netrwhist
 *~
 
+# specific manually added module files (MARIUS)
+/__init__.py
+inference/__init__.py
+lib/__init__.py
+
 ### IPythonNotebook template
 # Temporary data
 .ipynb_checkpoints/
