@@ -328,6 +328,9 @@ class PoseHighResolutionNet(nn.Module):
             padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0
         )
 
+        # ✱➞ Add this line so that the network will upsample 72×96 → 144×192
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+
         self.pretrained_layers = cfg['MODEL']['EXTRA']['PRETRAINED_LAYERS']
 
     def _make_transition_layer(
@@ -456,6 +459,7 @@ class PoseHighResolutionNet(nn.Module):
         y_list = self.stage4(x_list)
 
         x = self.final_layer(y_list[0])
+        x = self.upsample(x)                  # now x is (B, NUM_JOINTS, 144, 192)
 
         return x
 
