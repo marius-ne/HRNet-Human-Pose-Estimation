@@ -5,7 +5,7 @@ CUDNN:
   ENABLED: true
 DATA_DIR: ''
 GPUS: (0,1,2,3)
-OUTPUT_DIR: '/content/drive/MyDrive/COLAB_DATA/SPEED+/coco/output'
+OUTPUT_DIR: 'output'
 LOG_DIR: 'log'
 WORKERS: 2
 PRINT_FREQ: 100
