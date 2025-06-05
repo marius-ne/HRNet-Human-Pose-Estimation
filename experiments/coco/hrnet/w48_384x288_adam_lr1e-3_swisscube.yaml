@@ -92,7 +92,7 @@ MODEL:
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
-  BATCH_SIZE_PER_GPU: 24
+  BATCH_SIZE_PER_GPU: 30
   SHUFFLE: true
   BEGIN_EPOCH: 0
   END_EPOCH: 10
@@ -108,7 +108,7 @@ TRAIN:
   MOMENTUM: 0.9
   NESTEROV: false
 TEST:
-  BATCH_SIZE_PER_GPU: 24
+  BATCH_SIZE_PER_GPU: 30
   COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
   BBOX_THRE: 1.0
   IMAGE_THRE: 0.0
