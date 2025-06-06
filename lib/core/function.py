@@ -68,7 +68,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
 
         # Compute rigid‐geometry loss over each corner‐pair
         loss_geom = 0.0
-        rigid_pairs = config.RIGID_PAIRS # edges to keep at a constant distance
+        rigid_pairs = config.DATASET.RIGID_PAIRS # edges to keep at a constant distance
         for (i, j) in rigid_pairs:
             d_pred = torch.norm(preds[:, i] - preds[:, j], dim=1)   # (N,)
             d_gt   = torch.norm(gt_coords[:, i] - gt_coords[:, j], dim=1)
