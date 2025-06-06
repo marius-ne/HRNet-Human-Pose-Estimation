@@ -54,31 +54,33 @@ def train(config, train_loader, model, criterion, optimizer, epoch,
             loss = criterion(output, target, target_weight)
 
         # loss = criterion(output, target, target_weight)
-        preds_np, _ = get_final_preds(
-            config, 
-            output.detach().cpu().numpy(), 
-            meta['center'].numpy(), 
-            meta['scale'].numpy()
-        )  # shape: (N, K, 2)
-        preds = torch.from_numpy(preds_np).to(output.device)        # (N, K, 2)
 
-        # Extract ground‐truth (x,y) from meta['joints'] (shape: [N, K, 3])
-        # THESE ARE RESIZED!
-        gt_coords = meta['joints'][:, :, :2].to(output.device)      # (N, K, 2)
+        # ----- RIGID BODY LOSS -----
+        # preds_np, _ = get_final_preds(
+        #     config, 
+        #     output.detach().cpu().numpy(), 
+        #     meta['center'].numpy(), 
+        #     meta['scale'].numpy()
+        # )  # shape: (N, K, 2)
+        # preds = torch.from_numpy(preds_np).to(output.device)        # (N, K, 2)
 
-        # Compute rigid‐geometry loss over each corner‐pair
-        loss_geom = 0.0
-        rigid_pairs = config.DATASET.RIGID_PAIRS # edges to keep at a constant distance
-        for (i, j) in rigid_pairs:
-            d_pred = torch.norm(preds[:, i] - preds[:, j], dim=1)   # (N,)
-            d_gt   = torch.norm(gt_coords[:, i] - gt_coords[:, j], dim=1)
-            loss_geom += ((d_pred - d_gt)**2).mean()
+        # # Extract ground‐truth (x,y) from meta['joints'] (shape: [N, K, 3])
+        # # THESE ARE RESIZED!
+        # gt_coords = meta['joints'][:, :, :2].to(output.device)      # (N, K, 2)
+
+        # # Compute rigid‐geometry loss over each corner‐pair
+        # loss_geom = 0.0
+        # rigid_pairs = config.DATASET.RIGID_PAIRS # edges to keep at a constant distance
+        # for (i, j) in rigid_pairs:
+        #     d_pred = torch.norm(preds[:, i] - preds[:, j], dim=1)   # (N,)
+        #     d_gt   = torch.norm(gt_coords[:, i] - gt_coords[:, j], dim=1)
+        #     loss_geom += ((d_pred - d_gt)**2).mean()
         
-        # Hyperparameter lambda_geom for rigid body keypoints
-        lambda_geom = 0.01
+        # # Hyperparameter lambda_geom for rigid body keypoints
+        # lambda_geom = 0.01
 
-        # Combine with the original heatmap MSE
-        loss = loss + lambda_geom * loss_geom
+        # # Combine with the original heatmap MSE
+        # loss = loss + lambda_geom * loss_geom
 
         # compute gradient and do update step
         optimizer.zero_grad()
