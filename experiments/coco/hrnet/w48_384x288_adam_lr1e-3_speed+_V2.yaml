@@ -5,8 +5,8 @@ CUDNN:
   ENABLED: true
 DATA_DIR: ''
 GPUS: (0,1,2,3)
-OUTPUT_DIR: "../drive/MyDrive/COLAB_DATA/SWISSCUBE/coco/output"
-LOG_DIR: "../drive/MyDrive/COLAB_DATA/SWISSCUBE/coco/log"
+OUTPUT_DIR: "../drive/MyDrive/COLAB_DATA/SPEED+/coco/output"
+LOG_DIR: "../drive/MyDrive/COLAB_DATA/SPEED+/coco/log"
 WORKERS: 2
 PRINT_FREQ: 100
 
@@ -15,27 +15,28 @@ DATASET:
   DATASET: 'coco'
   DATA_FORMAT: jpg
   FLIP: false
-  FLIP_PAIRS: []
+  FLIP_PAIRS: [[0,8],[7,5],[3,2]]
+  RIGID_PAIRS: [[0,7],[6,5],[7,5],[0,6],[5,1],[6,4],[0,3],[7,2]]
   NUM_JOINTS_HALF_BODY: 4
-  PROB_HALF_BODY: 0.0
+  PROB_HALF_BODY: 0
   ROOT: 'data/coco/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
-  TEST_SET: 'SWISSCUBE_test'
-  TRAIN_SET: 'SWISSCUBE_train'
+  TEST_SET: 'SPEED+_test_synthetic'
+  TRAIN_SET: 'SPEED+_train_synthetic'
 MODEL:
   INIT_WEIGHTS: true
   NAME: pose_hrnet
-  NUM_JOINTS: 8   # for cuboid, CHANGE FOR ANTENNAS!
+  NUM_JOINTS: 8
   PRETRAINED: 'models/pytorch/pose_coco/pose_hrnet_w48_384x288.pth'
   TARGET_TYPE: gaussian
   IMAGE_SIZE:
   - 288
   - 384
-  HEATMAP_SIZE: # doubled for swisscube
+  HEATMAP_SIZE: # doubled for speed+
   - 144
   - 192
-  SIGMA: 2  # reduced for swisscube
+  SIGMA: 2  # reduced for speed+
   EXTRA:
     PRETRAINED_LAYERS:
     - 'conv1'
@@ -97,11 +98,11 @@ TRAIN:
   BEGIN_EPOCH: 0
   END_EPOCH: 20
   OPTIMIZER: adam
-  LR: 0.0005 # adjusted for swisscube
+  LR: 0.0005 # adjusted for speed+
   LR_FACTOR: 0.1
   LR_STEP:
   - 12
-  - 16   # adjusted for swisscube
+  - 16   # adjusted for speed+
   WD: 0.0001
   GAMMA1: 0.99
   GAMMA2: 0.999
@@ -125,4 +126,4 @@ DEBUG:
   SAVE_BATCH_IMAGES_GT: true
   SAVE_BATCH_IMAGES_PRED: true
   SAVE_HEATMAPS_GT: true
-  SAVE_HEATMAPS_PRED: true
+  SAVE_HEATMAPS_PRED: true  

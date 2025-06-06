@@ -45,8 +45,8 @@ def setup_model(cfg_file: str, weights_file: str, device: str = "cuda") -> torch
 
 def run_inference(
     model: torch.nn.Module,
-    cfg,
-    image: np.ndarray | str,
+    cfg=cfg,
+    image: np.ndarray | str = None,
     device: str = "cuda",
     bbox: list[float] = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
