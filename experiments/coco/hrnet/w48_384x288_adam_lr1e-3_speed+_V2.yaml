@@ -18,7 +18,7 @@ DATASET:
   FLIP_PAIRS: [[0,8],[7,5],[3,2]]
   RIGID_PAIRS: [[0,7],[6,5],[7,5],[0,6],[5,1],[6,4],[0,3],[7,2]]
   NUM_JOINTS_HALF_BODY: 4
-  PROB_HALF_BODY: 0
+  PROB_HALF_BODY: 0.0
   ROOT: 'data/coco/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
