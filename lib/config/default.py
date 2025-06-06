@@ -64,6 +64,7 @@ _C.DATASET.SELECT_DATA = False
 # training data augmentation
 _C.DATASET.FLIP = True
 _C.DATASET.FLIP_PAIRS = []
+_C.DATASET.RIGID_PAIRS = [] # added for rigid body
 _C.DATASET.SCALE_FACTOR = 0.25
 _C.DATASET.ROT_FACTOR = 30
 _C.DATASET.PROB_HALF_BODY = 0.0
