@@ -104,12 +104,12 @@ TRAIN:
   - 16   # adjusted for swisscube
   WD: 0.0001
   GAMMA1: 0.99
-  GAMMA2: 0.999
+  GAMMA2: 0
   MOMENTUM: 0.9
   NESTEROV: false
 TEST:
   BATCH_SIZE_PER_GPU: 26
-  COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
+  COCO_BBOX_FILE: ''
   BBOX_THRE: 1.0
   IMAGE_THRE: 0.0
   IN_VIS_THRE: 0.2
