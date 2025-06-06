@@ -12,7 +12,7 @@ import math
 
 import numpy as np
 
-from utils.transforms import transform_preds
+from training.lib.utils.transforms import transform_preds
 
 
 def get_max_preds(batch_heatmaps):
