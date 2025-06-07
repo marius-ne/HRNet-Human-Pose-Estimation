@@ -22,8 +22,8 @@ DATASET:
   ROOT: 'data/coco/'
   ROT_FACTOR: 45
   SCALE_FACTOR: 0.35
-  TEST_SET: 'SPEED+_test_synthetic'
-  TRAIN_SET: 'SPEED+_train_synthetic'
+  TEST_SET: 'SPEED+_test_synthetic_baseline_deprived'
+  TRAIN_SET: 'SPEED+_train_synthetic_baseline_deprived'
 MODEL:
   INIT_WEIGHTS: true
   NAME: pose_hrnet
